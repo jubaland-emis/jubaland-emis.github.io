@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="so">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ballan-qabasho — Xafiiska EMIS</title>
+
+<!-- ============================================================
+     CUSTOMIZE PER DISTRICT: change DISTRICT_NAME below to match
+     the exact spelling used in the schools table's district column
+     e.g. "Kismaayo", "Baladxaawo", "Afmado", "Baardheere",
+     "Badhaadhe", "Buale", "Burdhubo", "Ceelwaaq", "Dhobley",
+     "Doolow", "Garbaharey", "Jamaame", "Luuq"
+     ============================================================ -->
+<script>
+  const DISTRICT_NAME = "Kismaayo"; // <-- CHANGE THIS per district page
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
+<style>
+  :root{
+    --ink:#26231F;
+    --sand:#EDE4D3;
+    --cream:#F7F4EC;
+    --teal:#1E3A34;
+    --clay:#A63A2C;
+    --line: rgba(38,35,31,0.14);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--sand);
+    color:var(--ink);
+    font-family:'Segoe UI', Tahoma, sans-serif;
+    line-height:1.6;
+  }
+  header{
+    background:var(--teal);
+    color:var(--cream);
+    padding:16px 20px 24px;
+    text-align:center;
+  }
+  header img.banner{
+    max-width:100%;
+    width:520px;
+    height:auto;
+    margin-bottom:10px;
+  }
+  header h1{margin:0; font-size:1.4rem;}
+  header p{margin:6px 0 0; color:#CFE0DB; font-size:0.95rem;}
+
+  .watermark{
+    position:fixed;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    width:380px;
+    max-width:70vw;
+    opacity:0.06;
+    z-index:0;
+    pointer-events:none;
+  }
+  header, main{ position:relative; z-index:1; }
+
+  main{max-width:520px; margin:0 auto; padding:24px 20px 60px;}
+
+  .card{
+    background:var(--cream);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:22px;
+    margin-bottom:20px;
+  }
+  .card h2{font-size:1.05rem; margin:0 0 14px; color:var(--teal);}
+
+  label{display:block; font-size:0.9rem; font-weight:600; margin:14px 0 6px;}
+  input, textarea{
+    width:100%;
+    padding:10px 12px;
+    font-size:1rem;
+    border:1px solid #C9C2AE;
+    border-radius:6px;
+    font-family:inherit;
+  }
+  textarea{resize:vertical;}
+
+  button{
+    margin-top:18px;
+    background:var(--clay);
+    color:var(--cream);
+    border:none;
+    font-weight:700;
+    font-size:0.95rem;
+    padding:12px 24px;
+    border-radius:6px;
+    cursor:pointer;
+  }
+  button:hover{background:#8F3122;}
+  button:disabled{opacity:0.5; cursor:default;}
+
+  .readonly-box{
+    background:var(--sand);
+    border-radius:6px;
+    padding:12px 14px;
+    font-size:0.92rem;
+    margin-top:14px;
+  }
+  .readonly-box div{margin:2px 0;}
+  .readonly-box b{color:var(--teal);}
+
+  .slots{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:8px;
+    margin-top:10px;
+  }
+  .slot-btn{
+    margin:0;
+    background:var(--cream);
+    color:var(--ink);
+    border:1px solid #C9C2AE;
+    padding:10px 6px;
+    font-size:0.88rem;
+    font-weight:600;
+  }
+  .slot-btn.taken{
+    background:#e6e0d0;
+    color:#a39d8c;
+    text-decoration:line-through;
+    cursor:not-allowed;
+  }
+  .slot-btn.selected{
+    background:var(--teal);
+    color:var(--cream);
+    border-color:var(--teal);
+  }
+
+  .msg{margin-top:14px; font-size:0.92rem; padding:10px 12px; border-radius:6px;}
+  .msg.error{background:#f6d8d2; color:#7a2a1c;}
+  .msg.success{background:#d9ecdf; color:#1c4a2c;}
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+
+<img src="jss-seal.jpg" alt="" class="watermark">
+
+<header>
+  <img src="jubaland-header.png" alt="Ministry of Education Culture and Higher Learning — Jubaland" class="banner">
+  <h1 id="office-title">Xafiiska EMIS</h1>
+  <p>Ballan-qabashada booqashada xafiiska degmada</p>
+</header>
+
+<main>
+
+  <!-- STEP 1: Registration number lookup -->
+  <div class="card" id="step-lookup">
+    <h2>1. Geli Lambarka Diiwaan-gelinta Dugsiga</h2>
+    <label for="reg-input">Lambarka Diiwaan-gelinta (Reg No)</label>
+    <input type="text" id="reg-input" placeholder="Tusaale: 2009" inputmode="numeric">
+    <button id="lookup-btn" type="button">Hel Xogta Dugsiga</button>
+    <div id="lookup-msg"></div>
+
+    <div id="school-info" class="readonly-box hidden">
+      <div><b>Dugsiga:</b> <span id="info-school"></span></div>
+      <div><b>Maamulaha:</b> <span id="info-headteacher"></span></div>
+      <div><b>Telefoonka:</b> <span id="info-phone"></span></div>
+      <div><b>Degmada:</b> <span id="info-district"></span></div>
+    </div>
+  </div>
+
+  <!-- STEP 2: Date + slot selection -->
+  <div class="card hidden" id="step-booking">
+    <h2>2. Dooro Taariikhda iyo Waqtiga</h2>
+    <label for="date-input">Taariikhda Booqashada</label>
+    <input type="date" id="date-input">
+
+    <label>Waqtiyada La Heli Karo (10 daqiiqo qofkiiba)</label>
+    <div class="slots" id="slots-container"></div>
+
+    <label for="reason-input">Sababta Booqashada</label>
+    <textarea id="reason-input" rows="3" placeholder="Tusaale: Su'aalaha xogta EMIS"></textarea>
+
+    <button id="book-btn" type="button" disabled>Xaqiiji Ballanta</button>
+    <div id="book-msg"></div>
+  </div>
+
+  <!-- Success -->
+  <div class="card hidden" id="step-success">
+    <h2>✔ Ballanta waa la xaqiijiyay</h2>
+    <div class="readonly-box" id="success-details"></div>
+  </div>
+
+</main>
+
+<script>
+  // ============================================================
+  // SUPABASE CONFIG (already set to your project)
+  // ============================================================
+  const SUPABASE_URL = 'https://eqpgcpmfpimgblzazqrs.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_1N1Y3qIbLtP-l0uWJo1DOQ_luS-XKFr';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ============================================================
+  // EMAILJS CONFIG — replace these 3 placeholders once you have them
+  // ============================================================
+  const EMAILJS_PUBLIC_KEY = 'YOUR_EMAILJS_PUBLIC_KEY';
+  const EMAILJS_SERVICE_ID  = 'YOUR_EMAILJS_SERVICE_ID';
+  const EMAILJS_TEMPLATE_ID = 'YOUR_EMAILJS_TEMPLATE_ID';
+  if (window.emailjs && EMAILJS_PUBLIC_KEY !== 'YOUR_EMAILJS_PUBLIC_KEY') {
+    emailjs.init(EMAILJS_PUBLIC_KEY);
+  }
+
+  // Cancellation page URL — same page for every district
+  const CANCEL_PAGE_URL = 'https://jubaland-emis.github.io/cancel.html';
+
+  document.getElementById('office-title').textContent = 'Xafiiska EMIS — ' + DISTRICT_NAME;
+
+  // ---- Slot generation: 15 slots, 10 minutes each, starting 8:30 ----
+  function generateSlots(){
+    const slots = [];
+    let h = 8, m = 30;
+    for (let i = 0; i < 15; i++){
+      const hh = String(h).padStart(2,'0');
+      const mm = String(m).padStart(2,'0');
+      slots.push(`${hh}:${mm}`);
+      m += 10;
+      if (m >= 60){ m -= 60; h += 1; }
+    }
+    return slots;
+  }
+  const ALL_SLOTS = generateSlots();
+
+  let currentSchool = null; // { reg_no, school_name, headteacher_name, phone_number, email }
+  let selectedSlot = null;
+
+  // ---- Step 1: lookup ----
+  document.getElementById('lookup-btn').addEventListener('click', async () => {
+    const regNo = document.getElementById('reg-input').value.trim();
+    const msgEl = document.getElementById('lookup-msg');
+    msgEl.textContent = '';
+    if (!regNo){ msgEl.innerHTML = '<div class="msg error">Fadlan geli lambarka diiwaan-gelinta.</div>'; return; }
+
+    const { data, error } = await supabaseClient.rpc('lookup_school', {
+      p_reg_no: regNo,
+      p_district: DISTRICT_NAME
+    });
+
+    if (error || !data || data.length === 0){
+      msgEl.innerHTML = '<div class="msg error">Lambarkan lama helin xafiiskan degmada. Fadlan hubi lambarka.</div>';
+      document.getElementById('school-info').classList.add('hidden');
+      document.getElementById('step-booking').classList.add('hidden');
+      currentSchool = null;
+      return;
+    }
+
+    const row = data[0];
+    currentSchool = { reg_no: regNo, ...row };
+
+    document.getElementById('info-school').textContent = row.school_name;
+    document.getElementById('info-headteacher').textContent = row.headteacher_name;
+    document.getElementById('info-phone').textContent = row.phone_number;
+    document.getElementById('info-district').textContent = row.district;
+    document.getElementById('school-info').classList.remove('hidden');
+
+    document.getElementById('step-booking').classList.remove('hidden');
+    document.getElementById('date-input').min = new Date().toISOString().split('T')[0];
+  });
+
+  // ---- Step 2: date change -> load booked slots ----
+  document.getElementById('date-input').addEventListener('change', renderSlots);
+
+  async function renderSlots(){
+    const date = document.getElementById('date-input').value;
+    const container = document.getElementById('slots-container');
+    container.innerHTML = '';
+    selectedSlot = null;
+    document.getElementById('book-btn').disabled = true;
+    if (!date) return;
+
+    const { data: booked } = await supabaseClient.rpc('get_booked_slots', {
+      p_district: DISTRICT_NAME,
+      p_date: date
+    });
+    const bookedTimes = new Set((booked || []).map(r => r.visit_time.slice(0,5)));
+
+    ALL_SLOTS.forEach(slot => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'slot-btn';
+      btn.textContent = slot;
+      if (bookedTimes.has(slot)){
+        btn.classList.add('taken');
+        btn.disabled = true;
+      } else {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          selectedSlot = slot;
+          document.getElementById('book-btn').disabled = false;
+        });
+      }
+      container.appendChild(btn);
+    });
+  }
+
+  // ---- Step 3: book ----
+  document.getElementById('book-btn').addEventListener('click', async () => {
+    const bookMsg = document.getElementById('book-msg');
+    const bookBtn = document.getElementById('book-btn');
+    const date = document.getElementById('date-input').value;
+    const reason = document.getElementById('reason-input').value.trim();
+
+    if (!currentSchool || !date || !selectedSlot){
+      bookMsg.innerHTML = '<div class="msg error">Fadlan buuxi dhammaan xogta.</div>';
+      return;
+    }
+
+    bookBtn.disabled = true;
+    bookMsg.textContent = '';
+
+    const { data, error } = await supabaseClient.rpc('book_appointment', {
+      p_reg_no: currentSchool.reg_no,
+      p_district: DISTRICT_NAME,
+      p_visit_date: date,
+      p_visit_time: selectedSlot + ':00',
+      p_reason: reason,
+      p_email: currentSchool.email || null
+    });
+
+    if (error || !data || !data[0] || !data[0].success){
+      const message = (data && data[0] && data[0].message) || 'Wax baa qaldamay. Fadlan isku day mar kale.';
+      bookMsg.innerHTML = `<div class="msg error">${message}</div>`;
+      bookBtn.disabled = false;
+      renderSlots(); // refresh in case slot was just taken
+      return;
+    }
+
+    const result = data[0];
+
+    // Send confirmation email if the school has a valid-looking email
+    const email = currentSchool.email;
+    const looksLikeEmail = email && /\S+@\S+\.\S+/.test(email);
+    if (looksLikeEmail && window.emailjs && EMAILJS_PUBLIC_KEY !== 'YOUR_EMAILJS_PUBLIC_KEY'){
+      const cancelLink = `${CANCEL_PAGE_URL}?id=${result.appointment_id}&token=${result.cancel_token}`;
+      try {
+        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+          to_email: email,
+          headteacher_name: currentSchool.headteacher_name,
+          school_name: currentSchool.school_name,
+          district: DISTRICT_NAME,
+          visit_date: date,
+          visit_time: selectedSlot,
+          reason: reason,
+          cancel_link: cancelLink
+        });
+      } catch (e) {
+        console.error('Email send failed:', e);
+      }
+    }
+
+    document.getElementById('step-lookup').classList.add('hidden');
+    document.getElementById('step-booking').classList.add('hidden');
+    document.getElementById('step-success').classList.remove('hidden');
+    document.getElementById('success-details').innerHTML = `
+      <div><b>Dugsiga:</b> ${currentSchool.school_name}</div>
+      <div><b>Maamulaha:</b> ${currentSchool.headteacher_name}</div>
+      <div><b>Degmada:</b> ${DISTRICT_NAME}</div>
+      <div><b>Taariikhda:</b> ${date}</div>
+      <div><b>Waqtiga:</b> ${selectedSlot}</div>
+      ${looksLikeEmail ? '<div style="margin-top:8px;">Fariin xaqiijin ah ayaa loo diray emailkaaga.</div>' : ''}
+    `;
+  });
+</script>
+
+</body>
+</html>
