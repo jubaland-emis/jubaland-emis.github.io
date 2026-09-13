@@ -21,6 +21,16 @@
   .msg{ margin-top:16px; padding:12px 14px; border-radius:6px; font-size:0.92rem; }
   .msg.error{ background:#f6d8d2; color:#7a2a1c; }
   .msg.success{ background:#d9ecdf; color:#1c4a2c; }
+  .btn-row{ display:flex; gap:12px; justify-content:center; margin-top:20px; }
+  button{
+    border:none; font-weight:700; font-size:0.95rem; padding:12px 26px;
+    border-radius:6px; cursor:pointer; font-family:inherit;
+  }
+  .btn-yes{ background:var(--clay); color:var(--cream); }
+  .btn-yes:hover{ background:#8F3122; }
+  .btn-no{ background:transparent; color:var(--teal); border:1px solid var(--teal); }
+  .btn-no:hover{ background:rgba(30,58,52,0.08); }
+  .hidden{ display:none; }
 </style>
 </head>
 <body>
@@ -31,8 +41,22 @@
 <main>
   <div class="card">
     <h1>Jooji Ballanta</h1>
-    <p>Waxaad joojinaysaa ballanta booqashada aad qabsatay xafiiska EMIS.</p>
-    <div id="result" class="msg">Fadlan sug...</div>
+
+    <div id="ask-step">
+      <p>Ma waxaad doonaysaa inaad joojiso ballantaada booqashada xafiiska EMIS?</p>
+      <div class="btn-row">
+        <button type="button" class="btn-yes" id="confirm-yes">Haa, jooji</button>
+        <button type="button" class="btn-no" id="confirm-no">Maya</button>
+      </div>
+    </div>
+
+    <div id="kept-step" class="hidden">
+      <div class="msg success">Ballantaadu weli waa taagan tahay. Wax lagama beddelin.</div>
+    </div>
+
+    <div id="result-step" class="hidden">
+      <div id="result" class="msg"></div>
+    </div>
   </div>
 </main>
 
@@ -44,18 +68,37 @@
   const params = new URLSearchParams(window.location.search);
   const id = params.get('id');
   const token = params.get('token');
+
+  const askStep = document.getElementById('ask-step');
+  const keptStep = document.getElementById('kept-step');
+  const resultStep = document.getElementById('result-step');
   const resultEl = document.getElementById('result');
 
-  async function cancel(){
-    if (!id || !token){
-      resultEl.className = 'msg error';
-      resultEl.textContent = 'Xiriirkan lama aqoonsan karo.';
-      return;
-    }
+  if (!id || !token){
+    askStep.classList.add('hidden');
+    resultStep.classList.remove('hidden');
+    resultEl.className = 'msg error';
+    resultEl.textContent = 'Xiriirkan lama aqoonsan karo.';
+  }
+
+  document.getElementById('confirm-no').addEventListener('click', () => {
+    askStep.classList.add('hidden');
+    keptStep.classList.remove('hidden');
+  });
+
+  document.getElementById('confirm-yes').addEventListener('click', async () => {
+    const yesBtn = document.getElementById('confirm-yes');
+    yesBtn.disabled = true;
+    yesBtn.textContent = 'Fadlan sug...';
+
     const { data, error } = await supabaseClient.rpc('cancel_appointment', {
       p_id: Number(id),
       p_token: token
     });
+
+    askStep.classList.add('hidden');
+    resultStep.classList.remove('hidden');
+
     if (error || !data || !data[0] || !data[0].success){
       resultEl.className = 'msg error';
       resultEl.textContent = (data && data[0] && data[0].message) || 'Wax baa qaldamay.';
@@ -63,8 +106,7 @@
     }
     resultEl.className = 'msg success';
     resultEl.textContent = data[0].message;
-  }
-  cancel();
+  });
 </script>
 </body>
 </html>
