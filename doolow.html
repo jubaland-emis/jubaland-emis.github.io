@@ -178,6 +178,7 @@
     <input type="date" id="date-input">
 
     <label>Waqtiga qofkiiba loo qoondeeyay 10 daqiiqo)</label>
+    <div id="already-booked-msg" class="msg error hidden">Dugsigan horeba ballan buu qabtaa maalintan. Hal ballan ayaa maalintiiba loo qaadan karaa.</div>
     <div id="full-day-msg" class="msg error hidden">Dhammaan ballamaha maanta way buuxsameen. Fadlan dooro taariikh kale.</div>
     <div class="slots" id="slots-container"></div>
 
@@ -207,9 +208,9 @@
   // ============================================================
   // EMAILJS CONFIG — replace these 3 placeholders once you have them
   // ============================================================
-  const EMAILJS_PUBLIC_KEY = 'YOUR_EMAILJS_PUBLIC_KEY';
-  const EMAILJS_SERVICE_ID  = 'YOUR_EMAILJS_SERVICE_ID';
-  const EMAILJS_TEMPLATE_ID = 'YOUR_EMAILJS_TEMPLATE_ID';
+  const EMAILJS_PUBLIC_KEY = 'h99ky9kc3zYqny71H';
+  const EMAILJS_SERVICE_ID  = 'service_amks3ym';
+  const EMAILJS_TEMPLATE_ID = 'template_pjb5x5b';
   if (window.emailjs && EMAILJS_PUBLIC_KEY !== 'YOUR_EMAILJS_PUBLIC_KEY') {
     emailjs.init(EMAILJS_PUBLIC_KEY);
   }
@@ -277,11 +278,22 @@
     const date = document.getElementById('date-input').value;
     const container = document.getElementById('slots-container');
     const fullMsg = document.getElementById('full-day-msg');
+    const alreadyMsg = document.getElementById('already-booked-msg');
     container.innerHTML = '';
     fullMsg.classList.add('hidden');
+    alreadyMsg.classList.add('hidden');
     selectedSlot = null;
     document.getElementById('book-btn').disabled = true;
     if (!date) return;
+
+    const { data: hasExisting } = await supabaseClient.rpc('has_existing_appointment', {
+      p_reg_no: currentSchool.reg_no,
+      p_visit_date: date
+    });
+    if (hasExisting === true){
+      alreadyMsg.classList.remove('hidden');
+      return;
+    }
 
     const { data: booked } = await supabaseClient.rpc('get_booked_slots', {
       p_district: DISTRICT_NAME,
@@ -351,7 +363,9 @@
     // Send confirmation email if the school has a valid-looking email
     const email = currentSchool.email;
     const looksLikeEmail = email && /\S+@\S+\.\S+/.test(email);
-    if (looksLikeEmail && window.emailjs && EMAILJS_PUBLIC_KEY !== 'YOUR_EMAILJS_PUBLIC_KEY'){
+    const emailConfigured = window.emailjs && EMAILJS_PUBLIC_KEY !== 'YOUR_EMAILJS_PUBLIC_KEY';
+    let emailSent = false;
+    if (looksLikeEmail && emailConfigured){
       const cancelLink = `${CANCEL_PAGE_URL}?id=${result.appointment_id}&token=${result.cancel_token}`;
       try {
         await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
@@ -364,6 +378,7 @@
           reason: reason,
           cancel_link: cancelLink
         });
+        emailSent = true;
       } catch (e) {
         console.error('Email send failed:', e);
       }
@@ -378,7 +393,7 @@
       <div><b>Degmada:</b> ${DISTRICT_NAME}</div>
       <div><b>Taariikhda:</b> ${date}</div>
       <div><b>Waqtiga:</b> ${selectedSlot}</div>
-      ${looksLikeEmail ? '<div style="margin-top:8px;">Fariin xaqiijin ah ayaa loo diray emailkaaga.</div>' : ''}
+      ${emailSent ? '<div style="margin-top:8px;">Fariin xaqiijin ah ayaa loo diray emailkaaga.</div>' : ''}
     `;
   });
 </script>
