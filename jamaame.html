@@ -177,7 +177,8 @@
     <label for="date-input">Taariikhda Booqashada</label>
     <input type="date" id="date-input">
 
-    <label>Waqtiyada La Heli Karo (10 daqiiqo qofkiiba)</label>
+    <label>Waqtiga qofkiiba loo qoondeeyay 10 daqiiqo)</label>
+    <div id="full-day-msg" class="msg error hidden">Dhammaan ballamaha maanta way buuxsameen. Fadlan dooro taariikh kale.</div>
     <div class="slots" id="slots-container"></div>
 
     <label for="reason-input">Sababta Booqashada</label>
@@ -275,7 +276,9 @@
   async function renderSlots(){
     const date = document.getElementById('date-input').value;
     const container = document.getElementById('slots-container');
+    const fullMsg = document.getElementById('full-day-msg');
     container.innerHTML = '';
+    fullMsg.classList.add('hidden');
     selectedSlot = null;
     document.getElementById('book-btn').disabled = true;
     if (!date) return;
@@ -285,6 +288,11 @@
       p_date: date
     });
     const bookedTimes = new Set((booked || []).map(r => r.visit_time.slice(0,5)));
+
+    if (bookedTimes.size >= ALL_SLOTS.length){
+      fullMsg.classList.remove('hidden');
+      return;
+    }
 
     ALL_SLOTS.forEach(slot => {
       const btn = document.createElement('button');
