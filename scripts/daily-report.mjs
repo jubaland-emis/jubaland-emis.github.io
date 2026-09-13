@@ -35,13 +35,38 @@ async function fetchTodaysAppointments(date) {
   return res.json();
 }
 
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function buildReport(date, rows) {
   const total = rows.length;
-  let body = `Warbixinta Maalinlaha ah - Ballamaha EMIS\nTaariikhda: ${date}\n\nWadarta guud ee ballamaha maanta: ${total}\n\n`;
+  const BANNER = 'https://jubaland-emis.github.io/jubaland-header.png';
+
+  let html = `
+  <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;color:#26231F;">
+    <img src="${BANNER}" alt="Ministry of Education Jubaland" style="width:100%;max-width:600px;display:block;margin-bottom:16px;">
+
+    <div style="border:1px solid #ccc;border-radius:6px;padding:14px;text-align:center;margin-bottom:14px;">
+      <div style="font-weight:bold;font-size:16px;">Warbixinta Maalinlaha ah - Ballamaha EMIS</div>
+      <div style="font-size:13px;color:#555;margin-top:4px;">Taariikhda: ${escapeHtml(date)}</div>
+    </div>
+
+    <div style="text-align:center;font-weight:bold;font-size:15px;margin-bottom:20px;">
+      Wadarta guud ee ballamaha maanta: ${total}
+    </div>
+  `;
 
   if (total === 0) {
-    body += 'Maanta ballamo lama qorin.\n';
-    return body;
+    html += `
+    <div style="border:1px solid #ddd;border-radius:6px;padding:20px;text-align:center;color:#555;">
+      Maanta ballamo lama qorin.
+    </div>
+    </div>`;
+    return html;
   }
 
   const byDistrict = {};
@@ -54,18 +79,32 @@ function buildReport(date, rows) {
   const districts = Object.keys(byDistrict).sort();
   for (const district of districts) {
     const list = byDistrict[district];
-    body += `${district} (${list.length}):\n`;
-    for (const r of list) {
+    html += `
+    <div style="background:#1E3A34;color:#fff;font-weight:bold;padding:8px 12px;border-radius:6px 6px 0 0;">
+      ${escapeHtml(district)} (${list.length})
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:22px;">
+    `;
+    list.forEach((r, i) => {
       const school = r.schools ? r.schools.school_name : 'N/A';
       const ht = r.schools ? r.schools.headteacher_name : 'N/A';
       const time = (r.visit_time || '').slice(0, 5);
       const reason = r.reason || '-';
-      body += `  - ${time} | ${school} | ${ht} | ${reason}\n`;
-    }
-    body += '\n';
+      const bg = i % 2 === 0 ? '#f7f4ec' : '#ffffff';
+      html += `
+      <tr style="background:${bg};">
+        <td style="border:1px solid #ddd;padding:8px;font-weight:bold;white-space:nowrap;">${escapeHtml(time)}</td>
+        <td style="border:1px solid #ddd;padding:8px;">${escapeHtml(school)}</td>
+        <td style="border:1px solid #ddd;padding:8px;">${escapeHtml(ht)}</td>
+        <td style="border:1px solid #ddd;padding:8px;">${escapeHtml(reason)}</td>
+      </tr>
+      `;
+    });
+    html += `</table>`;
   }
 
-  return body;
+  html += `</div>`;
+  return html;
 }
 
 async function sendReportEmail(reportBody) {
