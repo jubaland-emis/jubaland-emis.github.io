@@ -178,6 +178,7 @@
     <input type="date" id="date-input">
 
     <label>Waqtiga qofkiiba loo qoondeeyay 10 daqiiqo)</label>
+    <div id="friday-msg" class="msg error hidden">Jimcaha xafiisku waa xiran yahay. Fadlan dooro maalin kale.</div>
     <div id="already-booked-msg" class="msg error hidden">Dugsigan horeba ballan buu qabtaa maalintan. Hal ballan ayaa maalintiiba loo qaadan karaa.</div>
     <div id="full-day-msg" class="msg error hidden">Dhammaan ballamaha maanta way buuxsameen. Fadlan dooro taariikh kale.</div>
     <div class="slots" id="slots-container"></div>
@@ -279,12 +280,21 @@
     const container = document.getElementById('slots-container');
     const fullMsg = document.getElementById('full-day-msg');
     const alreadyMsg = document.getElementById('already-booked-msg');
+    const fridayMsg = document.getElementById('friday-msg');
     container.innerHTML = '';
     fullMsg.classList.add('hidden');
     alreadyMsg.classList.add('hidden');
+    fridayMsg.classList.add('hidden');
     selectedSlot = null;
     document.getElementById('book-btn').disabled = true;
     if (!date) return;
+
+    // Friday check (day 5 = Friday, 0=Sunday ... 6=Saturday)
+    const dayOfWeek = new Date(date + 'T00:00:00').getDay();
+    if (dayOfWeek === 5){
+      fridayMsg.classList.remove('hidden');
+      return;
+    }
 
     const { data: hasExisting } = await supabaseClient.rpc('has_existing_appointment', {
       p_reg_no: currentSchool.reg_no,
